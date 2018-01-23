@@ -6,7 +6,7 @@ sitemap: false
 permalink: /
 ---
 
-We are an experimental group at the [Otto-von-Guericke-University](https://www.ovgu.de/). Our aim is to explore not so simple flows on small scales.. 
+We are an experimental group at the [Otto-von-Guericke-University](https://www.ovgu.de/). Our aim is to explore not so simple flows on small scales... 
  
 {% include carousel.html %}
 
