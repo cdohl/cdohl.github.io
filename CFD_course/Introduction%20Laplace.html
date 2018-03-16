@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8">
+   <!-- Google font -->
+   <link href="https://fonts.googleapis.com/css?family=Merriweather:400,700,400italic" rel="stylesheet" type="text/css">
+    <script type="text/x-mathjax-config">
+     MathJax.Hub.Config({tex2jax: {inlineMath: [['\$','\$'], ['\\(','\\)']]}});
+    </script>
+    <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript">
+    </script>
+    <title>
+     PyCFD: a Pythonic introduction to computational fluid dynamics
+    </title>
+    <link href="./css/notebook.css" rel="stylesheet">
+     <link href="../../assets/css/ie10-viewport-bug-workaround.css" rel="stylesheet">
+      <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+      <!--[if lt IE 9]><script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script><script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script><![endif]-->
+     </link>
+    </link>
+   </link>
+  </meta>
+ </head>
+ <nav class="navbar navbar-inverse navbar-fixed-top">
+  <div class="container">
+   <div class="navbar-header">
+    <button aria-controls="navbar" aria-expanded="false" class="navbar-toggle collapsed" data-target="#navbar" data-toggle="collapse" type="button">
+     <span class="sr-only">
+      Toggle navigation
+     </span>
+     <span class="icon-bar">
+     </span>
+     <span class="icon-bar">
+     </span>
+     <span class="icon-bar">
+     </span>
+    </button>
+    <a class="navbar-brand" href="index.html">
+     PyCFD
+    </a>
+   </div>
+   <div class="collapse navbar-collapse" id="navbar">
+    <ul class="nav navbar-nav">
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+     <li>
+      <a href="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/Boundary%20Element%20Method/Introduction%20Laplace.ipynb ">
+       Download notebook
+      </a>
+     </li>
+    </ul>
+   </div>
+   <!--/.nav-collapse -->
+  </div>
+ </nav>
+ <div id="notebook">
+  <div id="notebook-container">
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      $$
+\newcommand{\fudm}[2]{\frac{\mathrm{D} #1}{\mathrm{D} #2}}
+\newcommand{\pad}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\ppad}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\ppadd}[3]{\frac{\partial^2 #1}{\partial #2 \partial #3}}
+\newcommand{\nnabla}{\nabla^2}
+\newcommand{\eps}{\epsilon}
+\newcommand{\vdetail}[1]{\vb{#1}=\begin{pmatrix}#1_1\\#1_2\\#1_3\end{pmatrix}}
+\newcommand{\vb}[1]{\mathbf{#1}}
+\newcommand{\va}[1]{\vec{#1}}
+\newcommand{\tb}[1]{\underline{\underline{\mathbf{#1}}}}
+\newcommand{\fud}[2]{\frac{\mathrm{d} #1}{\mathrm{d} #2}}
+\newcommand{\PPhi}{\Phi(x,y;\xi,\eta)}
+$$
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h1 id="Boundary-Element-Method">
+       Boundary Element Method
+       <a class="anchor-link" href="#Boundary-Element-Method">
+        ¶
+       </a>
+      </h1>
+      <p>
+       This IPython notebook follows the notation and approach of WT Ang's "A Beginner's Course in Boundary Element Methods"
+       <a href="http://pulasan.spms.ntu.edu.sg:8000/user/rhea/edit/pap751/Documents/bemchap1a5.pdf">
+        Chapter 1
+       </a>
+       .
+      </p>
+      <p>
+       We want to solve the Laplace equation
+      </p>
+      $$\ppad{\phi}{x}+\ppad{\phi}{y}=0\tag{1}$$
+      <p>
+       in a region $R$ with boundary $C$. Two boundary conditions are available
+      </p>
+      \begin{eqnarray*}
+\phi &amp;=&amp; f_1(x,y)\quad\mathrm{for}\quad (x,y) \in C_1\tag{2a}\\
+\pad{\phi}{n} &amp;=&amp; f_2(x,y)\quad \mathrm{for}\quad (x,y) \in C_2\tag{2b}
+\end{eqnarray*}
+      <p>
+       Such that $C=C_1 \cup C_2$.
+      </p>
+      <p>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/BEM_region.png" width="300"/>
+      </p>
+      <center>
+       Figure 1. Domain $R$ and boundary $C$ (taken from WT Ang).
+      </center>
+      <p>
+       The normal derivative is
+      </p>
+      $$\pad{\phi}{n}=\vb{n}\cdot \nabla \phi=n_x\pad{\phi}{x} + n_y\pad{\phi}{y}\tag{3}$$
+      <p>
+       A typical example of Eq. (1) is heat flux and irrotational and incompressible flow.
+      </p>
+      <p>
+       On boundaries we may have either $\phi$ given or $\pad{\phi}{n}$ given.
+      </p>
+      <h2 id="Fundamental-Solution-(Free-Space-Green's-function)">
+       Fundamental Solution (Free Space Green's function)
+       <a class="anchor-link" href="#Fundamental-Solution-(Free-Space-Green's-function)">
+        ¶
+       </a>
+      </h2>
+      <p>
+       If we seek for a solution to Eq. (1) in a unbounded domain. There the solution must only depend on $r$ but not on the angle $\theta$. Rewriting Eq. (1) in polar coordinates and omitting the angle dependency we obtain an ODE:
+      </p>
+      $$\fud{}{r}\left(r\fud{\phi}{r}\right)=0\quad \mathrm{for} \quad r\ne 0$$
+      <p>
+       with the solution in $(
+x,y)$
+      </p>
+      $$\phi(x,y)=A\,\ln\sqrt{x^2+y^2}+B\quad \mathrm{for} \quad x,y \ne 0$$
+      <p>
+       Without changing generality we can shift the solution to an arbitrary center $(\xi,\eta)$ and set $A=1/(2\pi)$ and $B=0$ to obtain
+      </p>
+      $$\Phi(x,y;\xi,\eta)=\frac{1}{4\pi}\ln\left((x-\xi)^2+(y-\eta)^2\right)\tag{4}$$
+      <p>
+       This solution is called the fundamental solution for the 2-dimensionsal Laplace equation in free space.
+      </p>
+      <h2 id="Reciprocal-Relation">
+       Reciprocal Relation
+       <a class="anchor-link" href="#Reciprocal-Relation">
+        ¶
+       </a>
+      </h2>
+      <p>
+       The reciprocal relation Eq. (5) can be obtained from [Green's second identity] (
+       <a href="https://en.wikipedia.org/wiki/Green's_identities">
+        https://en.wikipedia.org/wiki/Green's_identities
+       </a>
+       )
+      </p>
+      $$\oint_C \left( \phi_2 \pad{\phi_1}{n} - \phi_1 \pad{\phi_2}{n}\right) ds(x,y)=0\tag{5}$$
+      <p>
+       where $\phi_1$ and $\phi_2$ are both solutions to the Laplace Equation and $C$ is any closed curve.
+      </p>
+      <h2 id="Boundary-Integral-Solution">
+       Boundary Integral Solution
+       <a class="anchor-link" href="#Boundary-Integral-Solution">
+        ¶
+       </a>
+      </h2>
+      <p>
+       We make use of the fundamental solution obtained above $\phi_1=\Phi(x,y;\xi,\eta)$ to rewrite the reciprocal relation with the unknown solution of the Laplace equation $\phi_2=\phi$:
+      </p>
+      $$\oint_C \phi(x,y) \pad{\PPhi}{n} - \PPhi\pad{\phi(x,y)}{n} ds(x,y)=0\quad
+\mathrm{for}\quad (\xi,\eta) \notin R \cup C \tag{6}$$
+      <p>
+       Equation (6) can only evaluated when $(\xi,\eta)$ is outside region $R \cup C$, otherwise we have singularities due to the specific choice of $\PPhi$. Thus Eq. (6) is not very helpful, yet we will use it as a startingpoint to derive an integral equation for the region $R$.
+      </p>
+      <h3 id="Improving-Equation-(6)">
+       Improving Equation (6)
+       <a class="anchor-link" href="#Improving-Equation-(6)">
+        ¶
+       </a>
+      </h3>
+      <p>
+       For a specific point $(\xi,\eta)$ inside region $R$ we can add a closed curve such that $(\xi,\eta)$ is outside region R.
+      </p>
+      <p>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/BEM_region_inside.png" width="300"/>
+      </p>
+      <center>
+       Figure 2. Integrating over the singularity $(x,y)=(\xi,\eta)$ in domain $R$ (taken from WT Ang).
+      </center>
+      <p>
+       We now need to integrate over $C$ and $C_\eps$ where $C_\eps$ is a circle at location $(\xi,\eta)$ with radius $\eps$:
+      </p>
+      $$\oint_C \phi \pad{\Phi}{n} - \Phi \pad{\phi}{n} ds = 
+-\oint_{C_\eps} \phi \pad{\Phi}{n} - \Phi \pad{\phi}{n} ds$$
+      <p>
+       To bring back $(\xi,\eta)$ into the region $R$ we need to reduce the radius $\eps \rightarrow 0^{+}$, i.e.
+      </p>
+      $$\oint_C \phi \pad{\Phi}{n} - \Phi \pad{\phi}{n} ds = 
+-\lim_{\eps \rightarrow 0^{+}}\oint_{C_\eps} \phi \pad{\Phi}{n} - \Phi \pad{\phi}{n} ds\tag{7}$$
+      <p>
+       The approach to find a solution for the R.H.S. of Eq. (7) is to insert $\PPhi$ and the Taylor series of $\phi(x,y)$ into the kernel.
+      </p>
+      <h4 id="Expressions-for-$\Phi$-and-$\pad{\Phi}{n}$">
+       Expressions for $\Phi$ and $\pad{\Phi}{n}$
+       <a class="anchor-link" href="#Expressions-for-$\Phi$-and-$\pad{\Phi}{n}$">
+        ¶
+       </a>
+      </h4>
+      <p>
+       Let's first write $\Phi$ and $\pad{\Phi}{n}$ as a function of $\eps=\sqrt{(x-\xi)^2+(y-\eta)^2}$. The normal vector is out of the region $R$, thus $\vb{n}=-\cos\theta\,\vb{i}\,-\sin\theta\,\vb{j}$.
+      </p>
+      $$\Phi=\frac{1}{4\pi} \ln \left[(x-\xi)^2+(y-\eta)^2\right]=\frac{1}{2\pi}\ln \eps\tag{8}$$
+      <p>
+       and
+      </p>
+      $$\pad{\Phi}{n} = n_x \pad{\Phi}{x} +n_y \pad{\Phi}{y}\tag{9}$$
+      <p>
+       with
+      </p>
+      $$\pad{\Phi}{x}=\pad{\Phi}{\eps}\pad{\eps}{x}=\frac{1}{2\pi\eps}\cos\theta\quad\mathrm{and}\quad
+\pad{\Phi}{y}=\pad{\Phi}{\eps}\pad{\eps}{y}=\frac{1}{2\pi\eps}\sin\theta$$
+      <p>
+       we can insert the above expression and the normal vector $n$ into Eq. (9) and obtain
+      </p>
+      $$\pad{\Phi}{n} = -\frac{1}{2\pi\eps}\tag{10}$$
+      <h4 id="Expressions-for-$\phi$-and-$\pad{\phi}{n}$">
+       Expressions for $\phi$ and $\pad{\phi}{n}$
+       <a class="anchor-link" href="#Expressions-for-$\phi$-and-$\pad{\phi}{n}$">
+        ¶
+       </a>
+      </h4>
+      <p>
+       For $\phi(x,y)$ we use the Taylor series. The Taylor series for a single variable function $f(x)$ at position $x=\xi$ is
+      </p>
+      $$f(x)=\sum_{n=0}^\infty \left(\left.\frac{\partial^k f}{\partial x^k}\right|_{x=\xi} \frac{(x-\xi)^k}{k!}\right)$$
+      <p>
+       and for a function depending on two variables $\phi(x,y)$ at position $(x,y)=(\xi,\eta)$ we need two sums
+      </p>
+      $$\phi(x,y)=\sum_{m=0}^\infty \sum_{k=0}^m \left(\left.\frac{\partial^m \phi}{\partial x^k\,\partial y^{m-k}}\right|_{(x,y)=(\xi,\eta)} \frac{(x-\xi)^k\,(y-\eta)^{m-k}}{k!\,(m-k)!}\right)\tag{11}$$
+      <p>
+       For the limit $\eps \rightarrow )^+$ need to express $\phi$ as a function of $\eps$ and recall that
+      </p>
+      \begin{eqnarray*}
+x-\xi=\eps\, \cos \theta\\
+y-\eta=\eps\,\sin \theta
+\end{eqnarray*}
+      <p>
+       Inserting this relation into Eq. (11) we obtain
+      </p>
+      $$\phi(\xi,\eta)=\sum_{m=0}^\infty \sum_{k=0}^m \left(\left.\frac{\partial^m \phi}{\partial x^k\,\partial y^{m-k}}\right|_{(x,y)=(\xi,\eta)} \frac{\eps^k \, \cos^k \theta \, \eps^{m-k} \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\tag{12}$$
+      <p>
+       and for
+      </p>
+      $$\pad{}{n}\phi(\xi,\eta)=\sum_{m=0}^\infty \sum_{k=0}^m \left(\frac{\partial^m}{\partial x^k\,\partial y^{m-k}}\left.\left(\pad{}{n}\phi(x,y)\right)\right|_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^m \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\quad .\tag{13}$$
+      <h4 id="Limit-$\eps\rightarrow-0$">
+       Limit $\eps\rightarrow 0$
+       <a class="anchor-link" href="#Limit-$\eps\rightarrow-0$">
+        ¶
+       </a>
+      </h4>
+      <p>
+       The R.H.S. of Eq. (7) has two terms:
+      </p>
+      $$\lim_{\eps \rightarrow 0^{+}}\oint_{C_\eps} \phi \pad{\Phi}{n} - \Phi \pad{\phi}{n} ds\tag{14}$$
+      <p>
+       We will insert the expressions for $\Phi$ Eq.(8), $\pad{\Phi}{n}$ Eq. (10), $\phi$ Eq. (12) and $\pad{\phi}{n}$ Eq. 13 into expression (14). We'll start with the first term. The integration path is $ds=\eps \,d\theta$ with $\theta=0\dots 2\pi$. The normal vector is inwards:
+      </p>
+      $$\vb{n}=\begin{pmatrix}-\cos\theta\\-sin\theta\end{pmatrix}$$
+      <p>
+       .
+      </p>
+      \begin{eqnarray*}
+\oint_{C_\eps} \phi \pad{\Phi}{n} ds&amp;=&amp;\oint_{C_\eps} \left[
+\sum_{m=0}^\infty \sum_{k=0}^m \left(\left.\frac{\partial^m \phi}{\partial x^k\,\partial y^{m-k}}\right|_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^k \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\,\,
+\left(- \frac{1}{2\pi \eps}\right) \right]\eps d\theta\\
+&amp;=&amp;- \frac{1}{2\pi}\oint_{C_\eps} \left[
+\sum_{m=0}^\infty \sum_{k=0}^m \left(\left.\frac{\partial^m \phi}{\partial x^k\,\partial y^{m-k}}\right|_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^k \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\,\,
+\right] d\theta\\
+&amp;=&amp;- \frac{1}{2\pi}\oint_{C_\eps} \left[ \phi(\xi,\eta) +
+\sum_{m=1}^\infty \sum_{k=0}^m \left(\left.\frac{\partial^m \phi}{\partial x^k\,\partial y^{m-k}}\right|_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^k \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\,\,
+\right] d\theta\\
+&amp;=&amp;- \frac{1}{2\pi}\phi(\xi,\eta) \oint_{C_\eps} d\theta\\
+&amp;&amp;- \frac{1}{2\pi}\oint_{C_\eps} \left[ \sum_{m=1}^\infty \sum_{k=0}^m \left(\left.\frac{\partial^m \phi}{\partial x^k\,\partial y^{m-k}}\right|_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^k \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\,\,
+\right] d\theta \tag{15}
+\end{eqnarray*}
+      <p>
+       Now we can approach the limit $\eps\rightarrow 0^+$ of Eq. (15). The first term is $\phi(\xi,\eta)$ while the second term contains only powers of $\eps$ of 1 and larger, thus approaches 0. In short
+      </p>
+      $$
+\lim_{\eps \rightarrow 0^+} \oint_{C_\eps} \phi \pad{\Phi}{n} ds= - \phi(\xi,\eta)
+$$
+      <p>
+       We do now the same for the second term of Eq. (7), namely
+      </p>
+      \begin{eqnarray*}
+\oint_{C_\eps} \Phi \pad{\phi}{n} ds&amp;=&amp;\oint_{C_\eps} \left[\left(\frac{\ln\eps}{2\pi}\right)
+\sum_{m=0}^\infty \sum_{k=0}^m \left(\frac{\partial^m}{\partial x^k\,\partial y^{m-k}}\left[ \pad{\phi}{n}\right]_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^k \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\,\,
+ \right]\eps d\theta\\
+&amp;=&amp;\frac{1}{2\pi}\eps \ln \eps \oint_{C_\eps} \left[\sum_{m=0}^\infty \sum_{k=0}^m \left(\frac{\partial^m}{\partial x^k\,\partial y^{m-k}}\left[ \pad{\phi}{n}\right]_{(x,y)=(\xi,\eta)} \frac{\eps^m \, \cos^k \theta \, \sin^{m-k} \theta}{k!\,(m-k)!}\right)\,\,
+ \right]d\theta\tag{16}
+\end{eqnarray*}
+      <p>
+       In the limit of $\eps\rightarrow 0^+$ the expression in front of the integral of Eq. (16) approaches 0. All expressions in the kernel are finite, thus the R.H.S. of Eq. (16) is 0 under this limit.
+      </p>
+      $$
+\lim_{\eps \rightarrow 0^+} \oint_{C_\eps} \Phi \pad{\phi}{n} ds= 0
+$$
+      <p>
+       Consequently for all points $(\xi,\eta)$ lying inside $R$ we obtain the integral equation on the boundary of $R$, namely $C$:
+      </p>
+      $$\oint_C \phi(x,y) \pad{\PPhi}{n} - \PPhi\pad{\phi(x,y)}{n} ds(x,y)=\phi(\xi,\eta)\quad
+\mathrm{for}\quad (\xi,\eta) \in R\tag{18}$$
+      <p>
+       This equation could be written with finite boundary elements along the boundary $C$. The integral would convert then into a sum and we could solve for $\phi(\xi,\eta)$. However, a problem remains!
+      </p>
+      <h4 id="Boundary-Integral-Equation-for-points-lying-on-$C$">
+       Boundary Integral Equation for points lying on $C$
+       <a class="anchor-link" href="#Boundary-Integral-Equation-for-points-lying-on-$C$">
+        ¶
+       </a>
+      </h4>
+      <p>
+       If we would know the values of $\phi$ and $\pad{\phi}{n}$ on the curve $C$ we could use Eq. (18) to calculate $\phi$ everywhere inside domain $R$. Unfortunately boundary conditions are only given as $\phi$
+       <em>
+        or
+       </em>
+       $\pad{\phi}{n}$ but not for both simultaneously. We thus need to generate more equations to obtain the missing boundary values. This is done by evaluating the $(\xi,\eta)$ on curve $C$. Again there we have singularities which need to be taken care of. This is done by integrating around the singularity as shown in Fig. 3.
+      </p>
+      <p>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/BEM_circumference.png" width="300"/>
+      </p>
+      <center>
+       Figure 3. Integrating over the singularity $(x,y)=(\xi,\eta)$ in on border $C$ (taken from WT Ang).
+      </center>
+      <p>
+       The integration path contains the curve $D$ and a semicircle $D_\eps$ with radius $\eps$. We can use the same approach as done for Fig. 2 with the only difference that the integral is $\theta=0\dots \pi$ instead. Thus the two Eqs. (15) &amp; (16) become in the limit
+      </p>
+      \begin{eqnarray}
+\lim_{\eps \rightarrow 0^+} \oint_{D_\eps} \phi \pad{\Phi}{n} ds= - \frac{1}{2}\phi(\xi,\eta)\\
+\lim_{\eps \rightarrow 0^+} \oint_{D_\eps} \Phi \pad{\phi}{n} ds= 0\tag{19}
+\end{eqnarray}
+      <p>
+       and therefore we formulate the equation for $(\xi,\eta)$ on the boundary as
+      </p>
+      $$\oint_C \phi(x,y) \pad{\PPhi}{n} - \PPhi\pad{\phi(x,y)}{n} ds(x,y)=\frac{1}{2}\phi(\xi,\eta)\quad
+\mathrm{for}\quad (\xi,\eta) \in C\quad .\tag{20}$$
+      <h3 id="Boundary-Integral-Equation-for-the-full-domain">
+       Boundary Integral Equation for the full domain
+       <a class="anchor-link" href="#Boundary-Integral-Equation-for-the-full-domain">
+        ¶
+       </a>
+      </h3>
+      <p>
+       Equations (18), (19), (6) for the three regions $(\xi,\eta)\in\,R$, $(\xi,\eta)\in\,C$, and $(\xi,\eta)\notin R \cup C$  can be combines in a single equation for the three cases:
+      </p>
+      $$\oint_C \phi(x,y) \pad{\PPhi}{n} - \PPhi\pad{\phi(x,y)}{n} ds(x,y)=\lambda(\xi,\eta)\phi(\xi,\eta)\tag{21}$$
+      <p>
+       and we define
+      </p>
+      $$
+\lambda(\xi,\eta)= 
+\begin{cases}
+    1,&amp;          \text{if } (\xi,\eta) \in R\\
+    \frac{1}{2},&amp;\text{if } (\xi,\eta) \in C\\
+    0,          &amp;\text{if } (\xi,\eta) \notin R \cup C
+\end{cases}
+$$
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h2 id="Constant-Elements">
+       Constant Elements
+       <a class="anchor-link" href="#Constant-Elements">
+        ¶
+       </a>
+      </h2>
+      <p>
+       The boundary is approximated with straight elements on which the boundary values are constant, i.e. constant element approximation. The boundary thus becomes a $N$-sided polygon consisting of straight lines $C^{(k)}$:
+      </p>
+      $$C \simeq C^{(1)} \cup C^{(2)} \cup C^{(3)} \cup C^{(4)} \dots  \cup C^{(N)}\tag{22}$$
+      <p>
+       The element $C^{(k)}$ is formed by a line from $(x^{(k)},y^{(k)})$ to $(x^{(k+1)},y^{(k+1)})$ as shown in Fig. 4.
+      </p>
+      <p>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/BEM_lines.png" width="300"/>
+      </p>
+      <center>
+       Figure 4. Approximating the boundaries with constant line elements.
+      </center>
+      <p>
+       The boundary values are assumed to be constant on the element $C^{(k)}$ with
+      </p>
+      \begin{eqnarray*}
+\phi&amp;\simeq&amp;\bar{\phi}^{(k)}\\
+\pad{\phi}{n}&amp;\simeq&amp;\bar{p}^{(k)}\quad,\tag{23}
+\end{eqnarray*}
+      <p>
+       with $\bar{\phi}^{(k)}$ and $\bar{p}^{(k)}$ are the values at the midpoint of element $C^{(k)}$.
+      </p>
+      <p>
+       We can now rewrite Eq. (21) using the approximations Eq. (22) and Eq. (23).
+      </p>
+      $$
+\lambda(\xi,\eta)\phi(\xi,\eta)=\sum_{k=1}^N\left(\bar{\phi}^{(k)}\,F_2^{(k)}(\xi,\eta)-\bar{p}^{(k)}\,F_1^{(k)}(\xi,\eta)\right)\tag{24}
+$$
+      <p>
+       with
+      </p>
+      \begin{eqnarray}
+F_1^{(k)}(\xi,\eta)&amp;=&amp;\int_{C^{(k)}}\PPhi \,ds(x,y)\tag{25a}\\
+F_2^{(k)}(\xi,\eta)&amp;=&amp;\int_{C^{(k)}}\pad{}{n}[\PPhi]\,ds(x,y)\tag{25b}
+\end{eqnarray}
+      <p>
+       For a given element $C^{(k)}$ either $\bar{\phi}^{(k)}$ or $\bar{p}^{(k)}$ is known but not both. Therefore, we need $N$ additional equations to determine the missing boundary conditions. To generate these equations we can solve the discrete BEM equation on the boundary itself, i.e.
+      </p>
+      $$
+\frac{1}{2}\phi^{(m)}=\sum_{k=1}^N\left(\bar{\phi}^{(k)}\,F_2^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})-\bar{p}^{(k)}\,F_1^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})\right)\tag{26}
+$$
+      <p>
+       Here $\phi^{(m)}$ is the value of $\phi$ at the midpoint of $C^{(m)}$ with coordinates $(\bar{x}^{(m)},\bar{y}^{(m)})$. Equation (26) contains $N$ linear equations with the $N$ unknowns of Eq. (24) on the R.H.S..
+      </p>
+      <h3 id="Determining-the-unknown-$\phi^{(k)}$-and-$p^{(k)}$">
+       Determining the unknown $\phi^{(k)}$ and $p^{(k)}$
+       <a class="anchor-link" href="#Determining-the-unknown-$\phi^{(k)}$-and-$p^{(k)}$">
+        ¶
+       </a>
+      </h3>
+      <p>
+       Let's rewrite Eq. (26) to determine the unknown boundary conditions through a system of $N$ . We start with an example; assume we have 2 boundary elements $C^{(1)}$ and $C^{(2)}$ where on the first element $\phi^{(1)}$ is given and on the second element $p^{(2)}$. The unknown boundary conditions are $p^{(1)}$ and $\phi^{(2)}$. We have $m=2$ equations and write short $F_1^{(k)}(m)$ for $F_1^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})$ and similarily for $F_2^{(k)}(m)$. Thus for this example we obtain 2 equations:
+      </p>
+      \begin{eqnarray}
+\frac{1}{2}\phi^{(1)}&amp;=&amp;\phi^{(1)}F_2^{(1)}(1)+p^{(1)}F_1^{(1)}(1)+\phi^{(2)}F_2^{(2)}(1)-p^{(2)}F_1^{(2)}(1)\quad m=1\\
+\frac{1}{2}\phi^{(2)}&amp;=&amp;\phi^{(1)}F_2^{(1)}(2)+p^{(1)}F_1^{(1)}(2)+\phi^{(2)}F_2^{(2)}(2)-p^{(2)}F_1^{(2)}(2)\quad m=2
+\end{eqnarray}
+      <p>
+       Now we put the known values to the R.H.S and the unknown values to the L.H.S.:
+      </p>
+      \begin{eqnarray}
+-p^{(1)}F_1^{(1)}(1)+\phi^{(2)}F_2^{(2)}(1)=\phi^{(1)}\left(-F_2^{(1)}(1)+\frac{1}{2}\right)+p^{(2)}F_1^{(2)}(1) \quad m=1\\
+-p^{(1)}F_1^{(1)}(2)+\phi^{(2)}\left(F_2^{(2)}(2)-\frac{1}{2}\right)=-\phi^{(1)}F_2^{(1)}(1)+p^{(2)}F_1^{(2)}(2) \quad m=2\tag{29}
+\end{eqnarray}
+      <p>
+       and introduce the variable $z^{(k)}$ for the unknown boundary conditions $\phi^{(k)}$ or $p^{(k)}$, respectively. Let us write now a general expression for above $m=N$ equations.
+      </p>
+      $$
+\sum_{k=1}^N a^{(mk)} z^{(k)} = \sum_{k=1}^N b^{(mk)} \quad \mathrm{for}\quad m=1,2,\dots,N \tag{27}
+$$
+      <p>
+       where $z^{(k)}$ are the unknown boundary conditions $\phi^{(k)}$ or $p^{(k)}$. The structure of the equation is the same yet depending on the type of boundary condition different $a^{(mk)}$ and $b^{(mk)}$ have to be generated. This can be written formally as:
+      </p>
+      \begin{eqnarray}
+a^{(mk)}&amp;=&amp;
+\begin{cases}
+    -F_1^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})&amp;  \text{if } \phi \text{ is specified over } C^{(k)},\\
+    F_2^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})-\frac{1}{2}\delta^{(mk)} &amp;  \text{if } \pad{\phi}{n} \text{ is specified over } C^{(k)}
+\end{cases}\\
+b^{(mk)}&amp;=&amp;
+\begin{cases}
+    \phi^{(k)}(-F_2^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})+\frac{1}{2}\delta^{(mk)})&amp;  \text{if } \phi \text{ is specified over } C^{(k)},\\
+    p^{(k)} F_1^{(k)}(\bar{x}^{(m)},\bar{y}^{(m)})&amp;  \text{if } \pad{\phi}{n} \text{ is specified over } C^{(k)}
+\end{cases}\\
+z^{(k)}&amp;=&amp;
+\begin{cases}
+    \bar{p}^{(k)}&amp;     \text{if } \phi \text{ is specified over } C^{(k)},\\
+    \bar{\phi}^{(k)}&amp;  \text{if } \pad{\phi}{n} \text{ is specified over } C^{(k)}
+\end{cases}\\
+\delta^{(mk)}&amp;=&amp;
+\begin{cases}
+    0&amp;     \text{if } m\ne k,\\
+    1&amp;     \text{if } m=k
+\end{cases}\tag{28}
+\end{eqnarray}
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h2 id="Integrals-over-the-Constant-Elements">
+       Integrals over the Constant Elements
+       <a class="anchor-link" href="#Integrals-over-the-Constant-Elements">
+        ¶
+       </a>
+      </h2>
+      <p>
+       The two function $F_1^{(k)}(\xi,\eta)$ and $F_2^{(k)}(\xi,\eta)$ as defined in Eqs. (25a) and (25b) are integrals which need to be evaluated on the boundary. To conduct the integration we represent the boundary in a functional form and then integrate numerically, analytically, or mixed. Here with a sufficiently simple Green's function $\Phi$ and boundary representation we can integrate analytically.
+      </p>
+      <p>
+       The first step is to implement a simple representation of the boundary $C^{(k)}$ which we do here with straight lines. On these lines we have to calculate the two functions $F^{(k)}_1(\xi,\eta)$ and $F^{(k)}_2(\xi,\eta)$ which are repeated for convenience
+      </p>
+      \begin{eqnarray}
+F_1^{(k)}(\xi,\eta)&amp;=&amp;\int_{C^{(k)}}\PPhi \,ds(x,y)\\
+F_2^{(k)}(\xi,\eta)&amp;=&amp;\int_{C^{(k)}}\pad{}{n}[\PPhi]\,ds(x,y)\\
+\mathrm{with}\quad \Phi(x,y;\xi,\eta)&amp;=&amp;\frac{1}{4\pi}\ln\left((x-\xi)^2+(y-\eta)^2\right) \tag{29}
+\end{eqnarray}
+      <p>
+       The first step is to parameterize the border $C^{(k)}$ using $0\le t\le 1$:
+      </p>
+      \begin{eqnarray*}
+x&amp;=&amp;x;^{(k)}-t\,l^{(k)}n^{(k)}_y\\
+y&amp;=&amp;y;^{(k)}+t\,l^{(k)}n^{(k)}_x\quad,\tag{30}
+\end{eqnarray*}
+      <p>
+       where $l^{(k)}$ is the length of the $k$-element. Here the $\vb{n}$ is used to represent the tangential vector. This makes sense as we then have only to use the normal vectors which is needed for $F_2^{(k)}$. 
+The
+       <em>
+        normal vector
+       </em>
+       is pointing away from $C^{(k)}$ and is defined as
+      </p>
+      $$\begin{pmatrix}n_x^{(k)}\\n_y^{(k)}\end{pmatrix}=
+\frac{1}{l^{(k)}}
+\begin{pmatrix}y^{(k+1)}-y^{(k)}\\x^{(k)}-x^{(k+1)}\end{pmatrix}
+$$
+      <p>
+       The integration path is simplified
+$$ds(x,y)=\sqrt{(dx)^2+(dy)^2}=l^{(k)} dt$$
+      </p>
+      <p>
+       using the parameter $t$. Thus we need to express the distance between $(x,y) \in C^{(k)}$ and $(\xi,\eta)$ as a function of $t$:
+      </p>
+      $$(x-\xi)^2+(y-\eta)^2= A^{(k)}\,t^2+B^{(k)}(\xi,\eta)\,t+E^{(k)}(\xi,\eta)\tag{31}$$
+      <p>
+       with
+\begin{eqnarray}
+A^{(k)}&amp;=&amp;[l^{(k)}]^2\
+B^{(k)}(\xi,\eta)&amp;=&amp;[-n_y^{(k)}(x^{(k)}-\xi)+n_x^{(k)}(y^{(k)}-\eta)]2 l^{(k)}\
+E^{(k)}(\xi,\eta)&amp;=&amp;(x^{(k)}-\xi)^2+(y^{(k)}-\eta)^2\quad . \tag{32}
+\end{eqnarray}
+      </p>
+      <p>
+       Using Eq. (31) we can write the integrals, Eq. (29), as a function of $t$. $(x,y)$ will always ly on a boundary, while $(\xi,\eta)$ may ly in region $R$ or on $C$. Depending on the position of $(\xi,\eta)$ the integrals in Eq. (29) possess singularities. It is helpful to introduce the expression:
+      </p>
+      $$M^{(k)}(\xi,\eta)=4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2\tag{33}$$
+      <p>
+       The properties of $M$ are
+      </p>
+      \begin{eqnarray}
+M^{(k)}(\xi,\eta)&amp;\ge&amp; 0\\
+M^{(k)}(\xi,\eta) &amp;=&amp; 0 \quad \mathrm{if }(x,y)\in \tilde{C}^{(k)}\quad,\tag{34} 
+\end{eqnarray}
+      <p>
+       where $\tilde{C}^{(k)}$ is the extension of $C^{(k)}$ for $-\infty \le t \infty$, i.e. a infinte long line going through the element $C^{(k)}$.
+      </p>
+      <h3 id="Integral-$F_2$">
+       Integral $F_2$
+       <a class="anchor-link" href="#Integral-$F_2$">
+        ¶
+       </a>
+      </h3>
+      <p>
+       Let's start with writing the $F_2$ integral using the parameterization Eq. (31):
+      </p>
+      $$F_2^{(k)}(\xi,\eta)=\frac{l^{(k)}}{2\pi}\int_0^1 \frac{n_x^{(k)}(x^{(k)}-\xi)+n_y^{(k)}(y^{(k)}-\eta)}
+{A^{(k)}\,t^2+B^{(k)}(\xi,\eta)\,t+E^{(k)}(\xi,\eta)}\,dt\tag{35}
+$$
+      <p>
+       If $M=0$ the point $(\xi,\eta)$ lies on $\tilde{C}^{(k)}$, thus the vector connecting $(x^{(k)},y^{(k)})$ with $(\xi,\eta)$, i.e. $(x^{(k)}-\xi)\vb{i}+(y^{(k)}-\eta)\vb{j}$ is parallel to the surface element and thus perpendicular to its normal vector $n_x^{(k)}\vb{i}+n_y^{(k)}\vb{j}$. Therefore their scalar product which is the nominator in the kernel of Eq. (35) is zero. Therefore
+      </p>
+      $$F_2^{(k)}(\xi,\eta)=0 \quad\mathrm{for}\quad M^{(k)}(\xi,\eta)=0\quad.\tag{36}$$
+      <p>
+       In absence of the singularity for $M&gt;0$ the integral Eq. (35) can be solved analytically giving:
+      </p>
+      \begin{eqnarray}
+F_2^{(k)}(\xi,\eta)&amp;=&amp;\frac{l^{(k)}[n_x^{(k)}(x^{(k)}-\xi)+n_y^{(k)}(y^{(k)}-\eta)]}
+{\pi\sqrt{4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2}}\cdot\\
+&amp; &amp; \left[\tan^{-1}\left(\frac{2 A^{(k)}+B^{(k)}(\xi,\eta)}{4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2}\right)
+    -\tan^{-1}\left(\frac{B^{(k)}(\xi,\eta)}{4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2}\right)\right]\tag{37}
+\end{eqnarray}
+      <h3 id="Integral-$F_1$">
+       Integral $F_1$
+       <a class="anchor-link" href="#Integral-$F_1$">
+        ¶
+       </a>
+      </h3>
+      <p>
+       With $M=0$ we can simplify expression the expression
+      </p>
+      $$A^{(k)}\,t^2+B^{(k)}(\xi,\eta)\,t+E^{(k)}(\xi,\eta)=A^{(k)}\left(t+\frac{B^{(k)}(\xi,\eta)}{2A^{(k)}}\right)^2\tag{37}\quad,$$
+      <p>
+       e.g. without the $E^{(k)}(\xi,\eta)$ term. Thus for $M=0$ the integral $F_1^{(k)}(\xi,\eta)$ becomes
+      </p>
+      $$
+F_1^{(k)}(\xi,\eta)=\frac{l^{(k)}}{4\pi}\int_0^1\ln\left[A^{(k)}\left(t+\frac{B^{(k)}(\xi,\eta)}{2A^{(k)}}\right)^2\right]\,dt\tag{38}
+$$
+      <p>
+       A singularity at $t=-B^{(k)}(\xi,\eta)/(2A^{(k)})$ remains. This can be avoided by integrating up to $\eps$ to this singularity and let $\eps\rightarrow 0$ and the same on the other side of the singularity. It can be shown that the singularity does not contribute to the integral, and thus we do not need to account for it. We can therefore integrate Eq. (38) directly giving:
+      </p>
+      $$
+F_1^{(k)}(\xi,\eta)=\frac{l^{(k)}}{2\pi}\left[
+\ln l^{(k)} + \left( 1+\frac{B^{(k)}(\xi,\eta)}{2 A^{(k)}}\right)\,
+\ln \left| 1+\frac{B^{(k)}(\xi,\eta)}{2A^{(k)}}\right| -1-\frac{B^{(k)}(\xi,\eta)}{2 A^{(k)}}
+\,\ln\left|\frac{B^{(k)}(\xi,\eta)}{2A^{(k)}}\right|\right]\tag{39}
+$$
+      <p>
+       If $M&gt;0$ we can do a direct integration
+      </p>
+      \begin{eqnarray}
+F_1^{(k)}(\xi,\eta) &amp;=&amp; \frac{l^{(k)}}{4\pi}\left[2\left(\ln(l^{(k)})-1\right)-
+\frac{B^{(k)}(\xi,\eta)}{2A^{(k)}}\,\ln\left|\frac{E^{(k)}(\xi,\eta)}{A^{(k)}}\right| \\
++\left( 1+\frac{B^{(k)}(\xi,\eta)}{2A^{(k)}}\right)
+\,\ln \left|1+\frac{B^{(k)}(\xi,\eta)}{A^{(k)}}+\frac{E^{(k)}(\xi,\eta)}{A^{(k)}}\right| \\
++\frac{\sqrt{4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2}}{A^{(k)}}\cdot\\
+\left(\tan^{-1} \frac{2A^{(k)}+B^{(k)}(\xi,\eta)}{\sqrt{4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2}}
+-\tan^{-1}\frac{B^{(k)}(\xi,\eta)}{\sqrt{4 A^{(k)} E^{(k)} (\xi,\eta)-[B^{(k)(\xi,\eta})]^2}}
+\right)\right]\tag{40}
+\end{eqnarray}
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h2 id="Implementation">
+       Implementation
+       <a class="anchor-link" href="#Implementation">
+        ¶
+       </a>
+      </h2>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [52]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="c">#Standard Boilerplate</span>
+<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="o">%</span><span class="k">matplotlib</span> inline
+<span class="n">eps</span><span class="o">=</span><span class="mf">1e-10</span> <span class="c">#very small number, larger than round-off error to compare with 0 </span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [53]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="c">#Calculate F1 and F2 </span>
+<span class="k">def</span> <span class="nf">CalcF</span><span class="p">(</span><span class="n">xi</span><span class="p">,</span><span class="n">eta</span><span class="p">,</span><span class="n">xk</span><span class="p">,</span><span class="n">yk</span><span class="p">,</span><span class="n">nkx</span><span class="p">,</span><span class="n">nky</span><span class="p">,</span><span class="n">L</span><span class="p">):</span>
+    <span class="n">A</span><span class="o">=</span><span class="n">L</span><span class="o">**</span><span class="mf">2.</span>
+    <span class="n">B</span><span class="o">=</span><span class="mf">2.</span><span class="o">*</span><span class="n">L</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">nky</span><span class="o">*</span><span class="p">(</span><span class="n">xk</span><span class="o">-</span><span class="n">xi</span><span class="p">)</span><span class="o">+</span><span class="n">nkx</span><span class="o">*</span><span class="p">(</span><span class="n">yk</span><span class="o">-</span><span class="n">eta</span><span class="p">))</span>
+    <span class="n">E</span><span class="o">=</span><span class="p">(</span><span class="n">xk</span><span class="o">-</span><span class="n">xi</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span><span class="o">+</span><span class="p">(</span><span class="n">yk</span><span class="o">-</span><span class="n">eta</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span>
+    <span class="n">D</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="mf">4.</span><span class="o">*</span><span class="n">A</span><span class="o">*</span><span class="n">E</span><span class="o">-</span><span class="n">B</span><span class="o">**</span><span class="mf">2.</span><span class="p">))</span>
+    <span class="n">BA</span><span class="o">=</span><span class="n">B</span><span class="o">/</span><span class="n">A</span>
+    <span class="n">EA</span><span class="o">=</span><span class="n">E</span><span class="o">/</span><span class="n">A</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">D</span><span class="o">&lt;</span><span class="n">eps</span><span class="p">):</span>
+        <span class="n">F1</span><span class="o">=</span><span class="mf">0.5</span><span class="o">*</span><span class="n">L</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">L</span><span class="p">)</span><span class="o">+</span><span class="p">(</span><span class="mf">1.</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="n">BA</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="mf">1.</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="n">BA</span><span class="p">))</span><span class="o">-</span>\
+                 <span class="mf">0.5</span><span class="o">*</span><span class="n">BA</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">BA</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">F2</span><span class="o">=</span><span class="mf">0.</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">F1</span><span class="o">=</span><span class="mf">0.25</span><span class="o">*</span><span class="n">L</span><span class="o">*</span><span class="p">(</span><span class="mf">2.</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">L</span><span class="p">)</span><span class="o">-</span><span class="mf">1.</span><span class="p">)</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="n">BA</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">EA</span><span class="p">))</span><span class="o">+</span>\
+                    <span class="p">(</span><span class="mf">1.</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="n">BA</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="mf">1.</span><span class="o">+</span><span class="n">BA</span><span class="o">+</span><span class="n">EA</span><span class="p">))</span><span class="o">+</span>\
+                    <span class="p">(</span><span class="n">D</span><span class="o">/</span><span class="n">A</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">((</span><span class="mf">2.</span><span class="o">*</span><span class="n">A</span><span class="o">+</span><span class="n">B</span><span class="p">)</span><span class="o">/</span><span class="n">D</span><span class="p">)</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">B</span><span class="o">/</span><span class="n">D</span><span class="p">)))</span>
+        <span class="n">F2</span><span class="o">=</span><span class="n">L</span><span class="o">*</span><span class="p">(</span><span class="n">nkx</span><span class="o">*</span><span class="p">(</span><span class="n">xk</span><span class="o">-</span><span class="n">xi</span><span class="p">)</span><span class="o">+</span><span class="n">nky</span><span class="o">*</span><span class="p">(</span><span class="n">yk</span><span class="o">-</span><span class="n">eta</span><span class="p">))</span><span class="o">/</span><span class="n">D</span><span class="o">*</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">((</span><span class="mf">2.</span><span class="o">*</span><span class="n">A</span><span class="o">+</span><span class="n">B</span><span class="p">)</span><span class="o">/</span><span class="n">D</span><span class="p">)</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">B</span><span class="o">/</span><span class="n">D</span><span class="p">))</span>
+    <span class="n">F1</span><span class="o">=</span><span class="n">F1</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    <span class="n">F2</span><span class="o">=</span><span class="n">F2</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    
+    <span class="k">return</span> <span class="n">F1</span><span class="p">,</span><span class="n">F2</span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [27]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="c">#Set up the matrices A and the vector B to obtain the unknown</span>
+<span class="c">#boundary condition</span>
+<span class="k">def</span> <span class="nf">CELAP1</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">xm</span><span class="p">,</span><span class="n">ym</span><span class="p">,</span><span class="n">xb</span><span class="p">,</span><span class="n">yb</span><span class="p">,</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">,</span><span class="n">lg</span><span class="p">,</span><span class="n">BCT</span><span class="p">,</span><span class="n">BCV</span><span class="p">):</span>
+    <span class="n">B</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    <span class="n">A</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">N</span><span class="p">,</span><span class="n">N</span><span class="p">))</span>
+    <span class="n">phi</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    <span class="n">dphi</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+            <span class="n">F1</span><span class="p">,</span><span class="n">F2</span><span class="o">=</span><span class="n">CalcF</span><span class="p">(</span><span class="n">xm</span><span class="p">[</span><span class="n">m</span><span class="p">],</span><span class="n">ym</span><span class="p">[</span><span class="n">m</span><span class="p">],</span><span class="n">xb</span><span class="p">[</span><span class="n">k</span><span class="p">],</span><span class="n">yb</span><span class="p">[</span><span class="n">k</span><span class="p">],</span><span class="n">nx</span><span class="p">[</span><span class="n">k</span><span class="p">],</span><span class="n">ny</span><span class="p">[</span><span class="n">k</span><span class="p">],</span><span class="n">lg</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">k</span><span class="o">==</span><span class="n">m</span><span class="p">):</span>
+                <span class="n">delta</span><span class="o">=</span><span class="mf">1.</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">delta</span><span class="o">=</span><span class="mf">0.</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">BCT</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">):</span>
+                <span class="n">A</span><span class="p">[</span><span class="n">m</span><span class="p">,</span><span class="n">k</span><span class="p">]</span><span class="o">=-</span><span class="n">F1</span>
+                <span class="n">B</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">=</span><span class="n">B</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">+</span><span class="n">BCV</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="o">-</span><span class="n">F2</span><span class="o">+.</span><span class="mi">5</span><span class="o">*</span><span class="n">delta</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">A</span><span class="p">[</span><span class="n">m</span><span class="p">,</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">F2</span><span class="o">-.</span><span class="mi">5</span><span class="o">*</span><span class="n">delta</span>
+                <span class="n">B</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">=</span><span class="n">B</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">+</span><span class="n">BCV</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">*</span><span class="n">F1</span>
+    <span class="c">#CALL SOLVER</span>
+    <span class="n">Z</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span>
+    
+    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">BCT</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">):</span>
+            <span class="n">phi</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">=</span><span class="n">BCV</span><span class="p">[</span><span class="n">m</span><span class="p">]</span>
+            <span class="n">dphi</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">=</span><span class="n">Z</span><span class="p">[</span><span class="n">m</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">phi</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">=</span><span class="n">Z</span><span class="p">[</span><span class="n">m</span><span class="p">]</span>
+            <span class="n">dphi</span><span class="p">[</span><span class="n">m</span><span class="p">]</span><span class="o">=</span><span class="n">BCV</span><span class="p">[</span><span class="n">m</span><span class="p">]</span>
+    
+    <span class="k">return</span> <span class="n">phi</span><span class="p">,</span><span class="n">dphi</span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [54]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="c">#Calculate the potential at a positon in R</span>
+<span class="k">def</span> <span class="nf">CELAP2</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">xi</span><span class="p">,</span><span class="n">eta</span><span class="p">,</span><span class="n">xb</span><span class="p">,</span><span class="n">yb</span><span class="p">,</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">,</span><span class="n">lg</span><span class="p">,</span><span class="n">phi</span><span class="p">,</span><span class="n">dphi</span><span class="p">):</span>
+    <span class="n">mysum</span><span class="o">=</span><span class="mf">0.</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+        <span class="n">F1</span><span class="p">,</span><span class="n">F2</span><span class="o">=</span><span class="n">CalcF</span><span class="p">(</span><span class="n">xi</span><span class="p">,</span><span class="n">eta</span><span class="p">,</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">nx</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">ny</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">lg</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="n">mysum</span><span class="o">+=</span><span class="n">phi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">F2</span><span class="o">-</span><span class="n">dphi</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">F1</span>
+    <span class="k">return</span> <span class="n">mysum</span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h3 id="Example-1">
+       Example 1
+       <a class="anchor-link" href="#Example-1">
+        ¶
+       </a>
+      </h3>
+      <p>
+       Let us find the solution in a square domain $R$ with $0\le x\le 1$ and $0\le y\le 1$ and the boundary conditions as shown in Fig. 5.
+      </p>
+      <p>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/BEM_example1.png" width="300"/>
+      </p>
+      <center>
+       Figure 5. A purely mathematical example of the Laplace equation in a square geometry.
+      </center>
+      <p>
+       Although this does not immediately connect with some flow, we can use it to check for the working of the functions
+       <code>
+        CalcF()
+       </code>
+       ,
+       <code>
+        CELAP1()
+       </code>
+       , and
+       <code>
+        CELAP2()
+       </code>
+       implemented above. This problem has an analytical solution of
+      </p>
+      $$\phi=\frac{\sinh(\pi x)\,\cos(\pi y)}{\sinh(\pi)}\tag{41}\quad.$$
+      <p>
+       The code below sets up the geometry and boundary condition, obtains the missing boundary conditions, and then calculates $\phi(\xi,\eta)$.
+      </p>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [61]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="c">#Main Program</span>
+<span class="c">#Sets up geometry and boundaries</span>
+
+<span class="c">#number of elements per side</span>
+<span class="n">N0</span><span class="o">=</span><span class="mi">100</span>
+<span class="c">#total number of elements</span>
+<span class="n">N</span><span class="o">=</span><span class="mi">4</span><span class="o">*</span><span class="n">N0</span>
+<span class="n">dl</span><span class="o">=</span><span class="mf">1.</span><span class="o">/</span><span class="n">N0</span> <span class="c">#all boundary elements are of the same length (check!)</span>
+<span class="c">#position of the corners</span>
+<span class="n">xb</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">yb</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+<span class="c">#position of the midpoints</span>
+<span class="n">xm</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="n">ym</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="c">#length of each element</span>
+<span class="n">lg</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="c">#normal vector</span>
+<span class="n">nx</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="n">ny</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="c">#type of boundary condition</span>
+<span class="n">BCT</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+<span class="c">#Value of boundary condition</span>
+<span class="n">BCV</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">N</span><span class="p">)</span>
+
+<span class="c">#define the positions of the boundaries</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N0</span><span class="p">):</span>
+    <span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">i</span><span class="o">*</span><span class="n">dl</span>           <span class="c">#bottom</span>
+    <span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">0.</span>
+    <span class="n">xb</span><span class="p">[</span><span class="n">N0</span><span class="o">+</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">1.</span>          <span class="c">#right</span>
+    <span class="n">yb</span><span class="p">[</span><span class="n">N0</span><span class="o">+</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="n">xb</span><span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">N0</span><span class="o">+</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">1.</span><span class="o">-</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>  <span class="c">#top</span>
+    <span class="n">yb</span><span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">N0</span><span class="o">+</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">1.</span>
+    <span class="n">xb</span><span class="p">[</span><span class="mi">3</span><span class="o">*</span><span class="n">N0</span><span class="o">+</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">0.</span>        <span class="c">#left</span>
+    <span class="n">yb</span><span class="p">[</span><span class="mi">3</span><span class="o">*</span><span class="n">N0</span><span class="o">+</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">1.</span><span class="o">-</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+<span class="c">#extend for simplicity of calculations</span>
+<span class="n">xb</span><span class="p">[</span><span class="n">N</span><span class="p">]</span><span class="o">=</span><span class="n">xb</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">yb</span><span class="p">[</span><span class="n">N</span><span class="p">]</span><span class="o">=</span><span class="n">yb</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+
+<span class="c">#Calculate midpoints, length, and normal vectors</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="n">xm</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=.</span><span class="mi">5</span><span class="o">*</span><span class="p">(</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="c">#midpoint</span>
+    <span class="n">ym</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=.</span><span class="mi">5</span><span class="o">*</span><span class="p">(</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">lg</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">**</span><span class="mf">2.</span><span class="o">+</span><span class="p">(</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span> <span class="c">#length</span>
+    <span class="n">nx</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">yb</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">/</span><span class="n">lg</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="c">#normal vector</span>
+    <span class="n">ny</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">xb</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="n">lg</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+<span class="c">#Set Boundary Conditions</span>
+<span class="c">#if BCT=0 then phi is given</span>
+<span class="c">#if BCT=1 then dphi/dn is given</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="n">N0</span><span class="p">):</span>
+        <span class="n">BCT</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mi">1</span>
+        <span class="n">BCV</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">0.</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">i</span><span class="o">&gt;=</span><span class="n">N0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">*</span><span class="n">N0</span><span class="p">):</span>
+        <span class="n">BCT</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">BCV</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">ym</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="p">(</span><span class="n">i</span><span class="o">&gt;=</span><span class="mi">2</span><span class="o">*</span><span class="n">N0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">3</span><span class="o">*</span><span class="n">N0</span><span class="p">):</span>
+        <span class="n">BCT</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mi">1</span>
+        <span class="n">BCV</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">0.</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">BCT</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">BCV</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="mf">0.</span>
+        
+<span class="n">phi</span><span class="p">,</span><span class="n">dphi</span><span class="o">=</span><span class="n">CELAP1</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">xm</span><span class="p">,</span><span class="n">ym</span><span class="p">,</span><span class="n">xb</span><span class="p">,</span><span class="n">yb</span><span class="p">,</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">,</span><span class="n">lg</span><span class="p">,</span><span class="n">BCT</span><span class="p">,</span><span class="n">BCV</span><span class="p">)</span>
+
+<span class="n">Npint</span><span class="o">=</span><span class="mi">10</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">,</span><span class="o">.</span><span class="mi">9</span><span class="p">,</span><span class="n">Npint</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">,</span><span class="o">.</span><span class="mi">9</span><span class="p">,</span><span class="n">Npint</span><span class="p">)</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+
+<span class="n">phi_bem</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">Npint</span><span class="p">,</span><span class="n">Npint</span><span class="p">))</span>
+<span class="n">phi_ana</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">Npint</span><span class="p">,</span><span class="n">Npint</span><span class="p">))</span>
+
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+    <span class="n">phi_bem</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">CELAP2</span><span class="p">(</span><span class="n">N</span><span class="p">,</span><span class="n">X</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">Y</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">xb</span><span class="p">,</span><span class="n">yb</span><span class="p">,</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">,</span><span class="n">lg</span><span class="p">,</span><span class="n">phi</span><span class="p">,</span><span class="n">dphi</span><span class="p">)</span>
+    <span class="n">phi_ana</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sinh</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">X</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">Y</span><span class="o">.</span><span class="n">flat</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+<span class="n">phi_ana</span><span class="o">=</span><span class="n">phi_ana</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sinh</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+                
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="c">##the figsize parameter can be used to produce different sized images</span>
+<span class="c">#Plot the BEM Solution</span>
+<span class="n">ax1</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s">'3d'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">,</span><span class="n">phi_bem</span><span class="p">[:])</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s">'X axis'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s">'Y axis'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="s">'Phi BEM solution'</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([])</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_zticks</span><span class="p">([])</span>
+<span class="c">#Plot the Analytical Solution, see Eq. (41)</span>
+<span class="n">ax2</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s">'3d'</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">,</span><span class="n">phi_ana</span><span class="p">[:])</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s">'X axis'</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s">'Y axis'</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="s">'Analytical Solution'</span><span class="p">);</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([])</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_zticks</span><span class="p">([]);</span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+    <div class="output_wrapper">
+     <div class="output">
+      <div class="output_area">
+       <div class="prompt">
+       </div>
+       <div class="output_png output_subarea ">
+        <img src="data:image/png;base64,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
+">
+        </img>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [ ]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre> 
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</html>
