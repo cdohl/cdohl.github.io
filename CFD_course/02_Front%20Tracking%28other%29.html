@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8">
+   <!-- Google font -->
+   <link href="https://fonts.googleapis.com/css?family=Merriweather:400,700,400italic" rel="stylesheet" type="text/css">
+    <script type="text/x-mathjax-config">
+     MathJax.Hub.Config({tex2jax: {inlineMath: [['\$','\$'], ['\\(','\\)']]}});
+    </script>
+    <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript">
+    </script>
+    <title>
+     PyCFD: a Pythonic introduction to computational fluid dynamics
+    </title>
+    <link href="./css/notebook.css" rel="stylesheet">
+     <link href="../../assets/css/ie10-viewport-bug-workaround.css" rel="stylesheet">
+      <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+      <!--[if lt IE 9]><script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script><script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script><![endif]-->
+     </link>
+    </link>
+   </link>
+  </meta>
+ </head>
+ <nav class="navbar navbar-inverse navbar-fixed-top">
+  <div class="container">
+   <div class="navbar-header">
+    <button aria-controls="navbar" aria-expanded="false" class="navbar-toggle collapsed" data-target="#navbar" data-toggle="collapse" type="button">
+     <span class="sr-only">
+      Toggle navigation
+     </span>
+     <span class="icon-bar">
+     </span>
+     <span class="icon-bar">
+     </span>
+     <span class="icon-bar">
+     </span>
+    </button>
+    <a class="navbar-brand" href="index.html">
+     PyCFD
+    </a>
+   </div>
+   <div class="collapse navbar-collapse" id="navbar">
+    <ul class="nav navbar-nav">
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+     <li>
+      <a href="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/Volume%20of%20Fluid/02_Front%20Tracking%28other%29.ipynb ">
+       Download notebook
+      </a>
+     </li>
+    </ul>
+   </div>
+   <!--/.nav-collapse -->
+  </div>
+ </nav>
+ <div id="notebook">
+  <div id="notebook-container">
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      $$
+\newcommand{\fudm}[2]{\frac{\mathrm{D} #1}{\mathrm{D} #2}}
+\newcommand{\pad}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\ppad}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\ppadd}[3]{\frac{\partial^2 #1}{\partial #2 \partial #3}}
+\newcommand{\nnabla}{\nabla^2}
+\newcommand{\eps}{\epsilon}
+\newcommand{\vdetail}[1]{\vb{#1}=\begin{pmatrix}#1_1\\#1_2\\#1_3\end{pmatrix}}
+\newcommand{\vb}[1]{\mathbf{#1}}
+\newcommand{\va}[1]{\vec{#1}}
+\newcommand{\tb}[1]{\underline{\underline{\mathbf{#1}}}}
+\newcommand{\fud}[2]{\frac{\mathrm{d} #1}{\mathrm{d} #2}}
+$$
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h1 id="Interface-tracking">
+       Interface tracking
+       <a class="anchor-link" href="#Interface-tracking">
+        ¶
+       </a>
+      </h1>
+      <p>
+       We can also represent the interface with a continous line and advect the interface according to the local flow velocity. To do so we need first a data structure to represent the interface, which is rater simple in 2d, yet 3d flow needs to take care much more. The 1d interface for 2d flows is stored as a 1d array
+      </p>
+      $$x_f(l)=(x(l),y(l))\quad l=1,2,..., N_f\quad.\tag{1}$$
+      <p>
+       The distance between points $l-1$ and $l$ can be easily calculated by the norm
+      </p>
+      $$\Delta s_{l,l-1}=\sqrt{\left(x(l)-x(l-1)\right)^2+\left(y(l)-y(l-1)\right)^2}\quad .\tag{2}$$
+      <p>
+       For convenience the array has two more points, $x_f+1$ and $x_f+2$ which are identical to $l=1$ and $l=2$. A sketch of an interface is given in
+       <a href="#fig1">
+        Fig. 1
+       </a>
+       .
+      </p>
+      <p>
+       <a name="fig1">
+       </a>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/interface rep.png" width="450">
+        <p>
+        </p>
+        <center>
+         Figure 1
+        </center>
+        <h2 id="Moving-the-Front">
+         Moving the Front
+         <a class="anchor-link" href="#Moving-the-Front">
+          ¶
+         </a>
+        </h2>
+        <p>
+         The points on the front will move with an interpolated velocity of a first nearby grid point. We therefore need to identify the gridpoint which is clearly different for $u$ and $v$ and for the vertical and horizontal direction. Let's start for the horizontal direction, the $u$ velocity is available at center of the grid point and we obtain the index $i$ by the following operation
+        </p>
+        <p>
+         <a name="eq3">
+         </a>
+         $$i=\mathrm{FLOOR}(x_f(l)\,/\,\Delta x)+1\tag{3}$$
+        </p>
+        <p>
+         The operation $\mathrm{FLOOR}$ obtains the integer value of a floating point value, e.g.
+        </p>
+       </img>
+      </p>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [1]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="kn">import</span> <span class="nn">math</span>
+<span class="n">xf</span><span class="o">=</span><span class="mf">2.7</span>
+<span class="n">dx</span><span class="o">=</span><span class="mf">1.</span>
+<span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">xf</span><span class="o">/</span><span class="n">dx</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+    <div class="output_wrapper">
+     <div class="output">
+      <div class="output_area">
+       <div class="prompt output_prompt">
+        Out[1]:
+       </div>
+       <div class="output_text output_subarea output_execute_result">
+        <pre>3.0</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <p>
+       Thus
+       <a href="#eq3">
+        Eq. (3)
+       </a>
+       gives the closeby grid point for the $u$ velocity in $i$-direction. For the vertical velocity which is defined only at positions $i+1/2$ we need to add this $1/2\,\Delta x$, thus $i$ is obtained by
+      </p>
+      <p>
+       <a name="eq4">
+       </a>
+       $$i=\mathrm{FLOOR}\left((x_f(l)+0.5\,\Delta x)\,/\,\Delta x\right)+1\quad .\tag{4}$$
+      </p>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [2]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre><span class="n">xf</span><span class="o">=</span><span class="mf">2.7</span>
+<span class="n">dx</span><span class="o">=</span><span class="mf">1.</span>
+<span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="n">xf</span><span class="o">+</span><span class="mf">0.5</span><span class="o">*</span><span class="n">dx</span><span class="p">)</span><span class="o">/</span><span class="n">dx</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+    <div class="output_wrapper">
+     <div class="output">
+      <div class="output_area">
+       <div class="prompt output_prompt">
+        Out[2]:
+       </div>
+       <div class="output_text output_subarea output_execute_result">
+        <pre>4.0</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h2 id="Bilinear-interpolation">
+       Bilinear interpolation
+       <a class="anchor-link" href="#Bilinear-interpolation">
+        ¶
+       </a>
+      </h2>
+      <p>
+       Both operation are demonstrated displayed in
+       <a href="#fig2">
+        Fig. 2
+       </a>
+       . $i$ for the horizontal velocity starts with 1 with the velocity on the wall, while for the vertical velocity it starts with the ghost cell. The $\mathrm{floor}$ command generates a grid cell closeby and takes care that $x_f$ is in the interval $i \le x_f \le i+1$. The same holds for the vertical velocity and the pressure, yet
+       <a href="#eq4">
+        Eq. (4)
+       </a>
+       has to be used.
+      </p>
+      <p>
+       <a name="fig2">
+       </a>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/front tracking_gridding.png" width="450">
+        <p>
+        </p>
+        <center>
+         Figure 2.
+        </center>
+        <p>
+         To obtain the velocity at position x_f, we can use a linear interpolation:
+        </p>
+        $$u(x_f)=u_i \frac{x_{i+1}-x_f}{\Delta x} + u_{i+1} \frac{x_f-x_i}{\Delta x}\tag{5}$$
+        <p>
+         Please check that Eq. (5) gives the right result for $x_f=x_i$ and $x_f=x_{i+1}$, i.e. $u(x_i)$ and $u(x_{i+1})$, respectively.
+        </p>
+        <p>
+         If an arbitrary scalar function $\phi$, such as $u$, $v$, or $p$ is a dependent of two variables, $x_i$ and $y_j$, then one can introduce a bilinear approximation of the kind:
+        </p>
+        \begin{eqnarray}
+\phi(x_f,y_f)=&amp;\phi&amp;_{i,j}\left(\frac{x_{i+1}-x_f}{\Delta x}\right)\left(\frac{y_{j+1}-y_f}{\Delta y}\right)+
+\phi_{i,j+1}\left(\frac{x_{i+1}-x_f}{\Delta x}\right)\left(\frac{y_f-y_j}{\Delta y}\right)+\tag{6}\\
+&amp;\phi&amp;_{i+1,j}\left(\frac{x_f-x_{i}}{\Delta x}\right)\left(\frac{y_{j+1}-y_f}{\Delta y}\right)+
+\phi_{i+1,j+1}\left(\frac{x_f-x_i}{\Delta x}\right)\left(\frac{y_f-y_j}{\Delta y}\right)
+\end{eqnarray}
+        <p>
+         Equation (3.6) can be rewritten as
+        </p>
+        $$\phi(x_f,y_f)=w_{i,j}\phi_{i,j}+w_{i,j+1}\phi_{i,j+1}+w_{i+1,j}\phi_{i+1,j}+w_{i+1,j+1}\phi_{i+1,j+1}\tag{7}$$
+        <p>
+         where $w_{i,j}$ can be interpreted as weights. This nonlinear interpolation can is more clearly represented in Fig. 3 where the yellow point is multiplied with the yellow area, the blue point with the blue area and so on.
+        </p>
+        <p>
+         <a name="fig3">
+         </a>
+         <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/Bilinear_interpolation_visualisation.png" width="250">
+          <p>
+          </p>
+          <center>
+           Figure 3, taken from [Wikipedia](https://en.wikipedia.org/wiki/Bilinear_interpolation).
+          </center>
+          <p>
+           The sum of the weights must obay
+          </p>
+          $$\sum_{i,j}w_{i,j}=1\quad .\tag{8}$$
+          <p>
+           We will use the bilinear interpolation to obtain the velocity at the interface. This will done separately for the $u$ and the $v$-component. Thereafter we can propagate the position of the front as
+          </p>
+          $$\vb{x}^{n+1}_f=\vb{x}^n_f+\Delta t \,\vb{u}^n_f\quad .\tag{9}$$
+         </img>
+        </p>
+       </img>
+      </p>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h2 id="Density-reconstruction">
+       Density reconstruction
+       <a class="anchor-link" href="#Density-reconstruction">
+        ¶
+       </a>
+      </h2>
+      <p>
+       The idea is to calculate first the gradient of the density from the tracked interface, and then integrate this gradient to obtain the density. This density field is updated and used for the next time step of the VoF calculation.
+      </p>
+      <p>
+       Thus we need first to obtain this gradient which is done by defining the density with the help of Heavyside functions $H(\vb{x})$, which is 1 if $\vb{x}$ is in fluid 1 with density $\rho_1$ and 0 if $\vb{x}$ is in fluid 2 with density $\rho_2$.
+Then the density in the whole fluid domain can be written as
+      </p>
+      $$\rho(\vb{x})=\rho_1 \, H(\vb{x}) + \rho_2\,\left(1-H(\vb{x})\right)\quad .\tag{10}$$
+      <p>
+       The gradient can be applied in a straightforward fashion
+      </p>
+      $$\nabla \rho=(\rho_1-\rho_2)\,\nabla H(\vb{x})=\Delta \rho \,\vb{n} \,\delta (\vb{x}-\vb{x}_f)\quad . \tag{11}$$
+      <p>
+       The normal vector $\vb{n}$ points from fluid 2 to fluid 1 (why?) and the delta function $\delta$ is 1 only on the interface, i.e. $\vb{x}-\vb{x}_f=0$.
+      </p>
+      <p>
+       We have now to connect the interface value (per area or in 2d per line element) with the value on the grid (per volume). This needs not only some kind of smoothing and but also the understanding how both are related.
+      </p>
+      <p>
+       <a name="fig4">
+       </a>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/interface integration.png" width="250">
+        <p>
+        </p>
+        <center>
+         Figure 4, taken from Tryggvason tutorial.
+        </center>
+        <p>
+         Figure 4 shows a domain/volume where the interface cuts through. We can integrate the gradient of the density over this volume and use Gauss to write it as three surface integrals:
+        </p>
+        \begin{eqnarray}
+\int_V \nabla \rho \, dV&amp;=&amp;\oint_S \rho \,\vb{n}\, dS\\
+&amp;=&amp;\rho_1 \oint_{S_1} \vb{n}\, dS + \rho_2 \oint_{S_2} \vb{n}\, dS + \oint_{S_I} \rho \, \vb{n}\, dS\tag{12}\\
+&amp;=&amp;\int_{S_I} (\rho_1 - \rho_2)\,\vb{n}\, ds\quad .
+\end{eqnarray}
+        <p>
+         where $S_I$ is a surface element of the interface (a line element for 2d volumes). The closed surface integrals in Eq. (12) over $S_1$ and $S_2$ are 0. We can now write a general equation relating the per volume quantity $\nabla \rho$ with the per surface quantity $\Delta \rho\,\vb{n}$:
+        </p>
+        $$\int_V \nabla \rho \, dV=\int_{S_I} \Delta \rho\,\vb{n}\, ds\quad .\tag{13}$$
+        <h3 id="Calculation-of-the-gradient">
+         Calculation of the gradient
+         <a class="anchor-link" href="#Calculation-of-the-gradient">
+          ¶
+         </a>
+        </h3>
+        <p>
+         In the program the gradient is distributed over the for closest cells using the bilinear interpolation. Thus we need 4 equations for the gradient in $x$ and 4 equations for the gradient in $y$-direction.
+        </p>
+        <p>
+         <a name="fig5">
+         </a>
+         <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/density_gradient_ft.png" width="500">
+          <p>
+          </p>
+          <center>
+           Figure 5
+          </center>
+          <p>
+           Using Eq. (13) we can develop write down the density gradients for all 8 point. Figure 5 shows the position of the gradients in $x$-direction. As an example using the values $a_x$ and $a_y$ as the distances to the right side in $x$ and $y$-direction we can write for the upper left gradient:
+          </p>
+          $$\pad{\rho}{x}_{i-1/2,j}=\frac{\Delta \rho}{2} \frac{1}{\Delta x\, \Delta y}
+\left(y_f(l+1)-y_f(l-1)\right)\,a_x\,a_y\tag{14}$$
+          <p>
+           This is done for all points of the front. As a grid may be visited multiple times we need to increase the value of the gradient at each grid point by the amount.
+          </p>
+          <h3 id="Integration">
+           Integration
+           <a class="anchor-link" href="#Integration">
+            ¶
+           </a>
+          </h3>
+          <p>
+           After the gradients in $x$ and $y$-direction are calculated, they can be integrated and to obtain the density field for the next time step. This is rather straightforward, we start with a point at some distance form the front where we know the density and integrate the density along one direction, e.g.
+          </p>
+          $$\rho_{i,j}=\rho_{i-1,j}+\Delta x \left(\pad{\rho}{x}\right)_{i-1/2,j}\tag{15}$$
+          <p>
+           The accuracy can be enhanced by integrating for point $(i,j)$ along all 4 directions and average the density. This results to
+          </p>
+          $$\rho_{i,j}=\frac{1}{4}\left[\rho_{i-1,j}+\rho_{i+1,j}+\rho_{i,j-1}+\rho_{i,j+1}+\\
+\Delta x \left(\left(\pad{\rho}{x}\right)_{i-1/2,j} - \left(\pad{\rho}{x}\right)_{i+1/2,j} \right)+
+\Delta y \left(\left(\pad{\rho}{x}\right)_{i,j-1/2} - \left(\pad{\rho}{x}\right)_{i,j+1/2} \right)\right]\tag{16}$$
+          <p>
+           Equation (16) can be iteratively solved or to speed up we can use SOR. Note, the negative signs in Eq. (16) are from the direction of integration, if we integrate in positive $x$ and $y$-direction we have a positive $\Delta x$ while in the other directions $\Delta x$ and $\Delta y$ is negative.
+          </p>
+         </img>
+        </p>
+       </img>
+      </p>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+      <h2 id="Reconstruction-of-the-front">
+       Reconstruction of the front
+       <a class="anchor-link" href="#Reconstruction-of-the-front">
+        ¶
+       </a>
+      </h2>
+      <p>
+       When the front is advected it may happen that points become closer and or they separate. To keep a fidel front for the furture advection steps we need to do some housekeeping. There we either remove points which are too close and add in points where distances become too large. Figure 6 depicts the linear list of points and the changes to the list during restructuring.
+       <a name="fig6">
+       </a>
+       <img src="http://nbviewer.ipython.org/github/cdohl/PAP751/blob/master/pics/front restructuring.png" width="280">
+        <p>
+        </p>
+        <center>
+         Figure 6, taken from Tryggvason tutorial
+        </center>
+        <p>
+         In the code this can be implemented by starting with a copy of the front points, deleting the original points, and then copy back the points where the check on distance is done point by point. If the distance is above a minimum distance and below a maximum distance, the point is copied.
+If the distance is too large a point is inserted by placing it at half the distance. If the point are too close, it is not copied back into the list. To close the list of points the last point is copied to the first position of the list (this even works when the last points is deleted).
+Inserting of points can be done simply by a linear interpolation, yet more careful insertion using high order interpolation increases stabilty and resolution.
+        </p>
+       </img>
+      </p>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing text_cell rendered">
+    <div class="prompt input_prompt">
+    </div>
+    <div class="inner_cell">
+     <div class="text_cell_render border-box-sizing rendered_html">
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [ ]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre> 
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="cell border-box-sizing code_cell rendered">
+    <div class="input">
+     <div class="prompt input_prompt">
+      In [ ]:
+     </div>
+     <div class="inner_cell">
+      <div class="input_area">
+       <div class=" highlight hl-ipython2">
+        <pre> 
+</pre>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+ </div>
+</html>
